@@ -1,0 +1,142 @@
+--1. Retrieve a list of courses along with the number of enrolled students for each course. Include courses with zero enrollments.
+--solution:-
+SELECT
+    c.CourseID,
+    c.CourseName,
+    COUNT(e.StudentID) AS EnrolledStudents
+FROM
+    Courses c
+LEFT JOIN
+    Enrollments e ON c.CourseID = e.CourseID
+GROUP BY
+    c.CourseID, c.CourseName
+ORDER BY
+    c.CourseID;
+
+
+--2. Find the top three instructors with the highest average assignment grades across all courses.
+--solution:-
+SELECT
+    i.InstructorID,
+    i.FirstName || ' ' || i.LastName AS InstructorName,
+    AVG(s.Grade) AS AverageGrade
+FROM
+    Instructors i
+JOIN
+    Courses c ON i.InstructorID = c.InstructorID
+JOIN
+    Assignments a ON c.CourseID = a.CourseID
+LEFT JOIN
+    Submissions s ON a.AssignmentID = s.AssignmentID
+GROUP BY
+    i.InstructorID, i.FirstName || ' ' || i.LastName
+ORDER BY
+    AverageGrade DESC
+FETCH FIRST 3 ROWS ONLY;
+
+--3. Retrieve the names of instructors who are teaching courses in the next two months.
+--solution:-
+
+SELECT FirstName, LastName
+FROM Instructors
+WHERE InstructorID IN (
+    SELECT DISTINCT InstructorID
+    FROM Courses
+    WHERE EndDate >= SYSDATE AND EndDate <= ADD_MONTHS(SYSDATE, 2)
+);
+
+
+--4. Find the top 3 courses with the highest enrollment counts.
+--solution:-
+
+SELECT c.CourseName, COUNT(e.EnrollmentID) AS EnrollmentCount
+FROM Courses c
+JOIN Enrollments e ON c.CourseID = e.CourseID
+GROUP BY c.CourseID, c.CourseName
+ORDER BY EnrollmentCount DESC
+FETCH FIRST 3 ROWS ONLY;
+
+--5. Calculate the average grade for each instructor across all assignments.
+--solution:-
+
+SELECT i.InstructorID, i.FirstName, i.LastName, AVG(s.Grade) AS AverageGrade
+FROM Instructors i
+JOIN Courses c ON i.InstructorID = c.InstructorID
+JOIN Assignments a ON c.CourseID = a.CourseID
+LEFT JOIN Submissions s ON a.AssignmentID = s.AssignmentID
+GROUP BY i.InstructorID, i.FirstName, i.LastName;
+
+--6. Find students who have submitted assignments late (after the due date) along with the number of late submissions.
+--solution:-
+
+SELECT s.StudentID, s.FirstName, s.LastName, COUNT(sub.SubmissionID) AS LateSubmissions
+FROM Students s
+JOIN Submissions sub ON s.StudentID = sub.StudentID
+JOIN Assignments a ON sub.AssignmentID = a.AssignmentID
+WHERE sub.SubmissionDate > a.DueDate
+GROUP BY s.StudentID, s.FirstName, s.LastName
+HAVING COUNT(sub.SubmissionID) > 0;
+
+--7. Retrieve the courses with the highest average grades, including the instructor information.
+--solution:-
+
+SELECT c.CourseID, c.CourseName, i.InstructorID, i.FirstName AS InstructorFirstName, i.LastName AS InstructorLastName, AVG(s.Grade) AS AverageGrade
+FROM Courses c
+JOIN Instructors i ON c.InstructorID = i.InstructorID
+LEFT JOIN Assignments a ON c.CourseID = a.CourseID
+LEFT JOIN Submissions s ON a.AssignmentID = s.AssignmentID
+GROUP BY c.CourseID, c.CourseName, i.InstructorID, i.FirstName, i.LastName
+ORDER BY AverageGrade DESC;
+
+
+--8. Retrieve the courses with the most consistent grades, i.e., the smallest standard deviation of grades across all assignments.
+--solution:-
+
+SELECT 
+    c.CourseID, 
+    c.CourseName, 
+    STDDEV(s.Grade) AS GradeStandardDeviation
+FROM Courses c
+LEFT JOIN Assignments a ON c.CourseID = a.CourseID
+LEFT JOIN Submissions s ON a.AssignmentID = s.AssignmentID
+GROUP BY c.CourseID, c.CourseName
+ORDER BY GradeStandardDeviation ASC;
+
+
+--9. Identify students who have not submitted any assignments and the courses they are enrolled in.
+--solution:-
+
+SELECT 
+    s.StudentID, 
+    s.FirstName, 
+    s.LastName, 
+    c.CourseID, 
+    c.CourseName
+FROM Students s
+CROSS JOIN Courses c
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM Assignments a
+    WHERE a.CourseID = c.CourseID
+    AND NOT EXISTS (
+        SELECT 1
+        FROM Submissions sub
+        WHERE sub.StudentID = s.StudentID
+        AND sub.AssignmentID = a.AssignmentID
+    )
+);
+
+
+--10. Find the instructors who have taught the most courses.
+--solution:-
+
+SELECT 
+    i.InstructorID, 
+    i.FirstName, 
+    i.LastName, 
+    COUNT(DISTINCT c.CourseID) AS CoursesTaught
+FROM Instructors i
+LEFT JOIN Courses c ON i.InstructorID = c.InstructorID
+GROUP BY i.InstructorID, i.FirstName, i.LastName
+ORDER BY CoursesTaught DESC;
+
